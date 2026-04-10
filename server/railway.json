@@ -5,6 +5,7 @@
     "buildCommand": "npm install --omit=dev"
   },
   "deploy": {
+    "preDeployCommand": "node src/migrations/runner.js up",
     "startCommand": "node src/index.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 30,
