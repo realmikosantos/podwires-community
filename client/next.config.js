@@ -22,8 +22,10 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    // In production on Railway, API calls go directly to the backend service URL.
-    // In development, proxy through Next.js to avoid CORS.
+    // In development, proxy all /api/ calls through Next.js to avoid CORS.
+    // In production on Railway, browser JS calls NEXT_PUBLIC_API_URL directly.
+    // SSO routes are handled by Next.js API routes (src/app/api/auth/sso/route.ts)
+    // which proxy to the Express backend — no rewrite needed here.
     if (process.env.NODE_ENV === 'production') return [];
     return [
       {
