@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { Mic2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-export default function SsoCallbackPage() {
+function SsoCallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { loadUser } = useAuthStore();
@@ -72,5 +72,24 @@ export default function SsoCallbackPage() {
         <p className="text-ink-400 text-sm">Signing you in&hellip;</p>
       </div>
     </div>
+  );
+}
+
+export default function SsoCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-ink-900">
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center mx-auto mb-5 animate-pulse">
+              <Mic2 className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-ink-400 text-sm">Signing you in&hellip;</p>
+          </div>
+        </div>
+      }
+    >
+      <SsoCallbackInner />
+    </Suspense>
   );
 }
