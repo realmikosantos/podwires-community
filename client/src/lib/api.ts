@@ -176,6 +176,11 @@ class ApiClient {
     });
   }
 
+  // Posts
+  getPosts(spaceSlug: string, page = 1) {
+    return this.request<any>(`/api/spaces/${spaceSlug}?page=${page}`);
+  }
+
   // Posts - comments & likes
   createComment(postId: string, data: { body: string; parentId?: string }) {
     return this.request<any>(`/api/posts/${postId}/comments`, {

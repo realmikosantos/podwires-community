@@ -11,31 +11,43 @@
 }
 
 @layer components {
+  /* ── Buttons ── */
   .btn-primary {
     @apply inline-flex items-center justify-center px-4 py-2 rounded-lg bg-brand-600 text-white font-medium
            hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
-           focus:ring-offset-ink-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+           focus:ring-offset-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg bg-ink-800 text-ink-200 font-medium
-           border border-ink-600 hover:bg-ink-700 focus:outline-none focus:ring-2 focus:ring-brand-500
-           focus:ring-offset-2 focus:ring-offset-ink-900 transition-colors;
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white text-gray-700 font-medium
+           border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500
+           focus:ring-offset-2 focus:ring-offset-white transition-colors;
   }
 
+  /* ── Cards — light theme for main content area ── */
   .card {
-    @apply bg-ink-800 rounded-xl border border-ink-700 shadow-sm;
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
   }
 
+  /* ── Tier badges ── */
   .badge-free {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-ink-700 text-ink-300;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600;
   }
 
   .badge-pro {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-800 text-brand-200;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700;
   }
 
   .badge-vip {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-800 text-accent-200;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-50 text-accent-700;
+  }
+
+  /* ── Scrollbar hide (used in top nav) ── */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
