@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { authenticate, optionalAuth, requireTier } = require('../middleware/auth');
+const { authenticate, optionalAuth, requireRole, requireTier } = require('../middleware/auth');
 const { query } = require('../config/database');
 
 const router = Router();
@@ -40,6 +40,84 @@ router.get('/', optionalAuth, async (req, res, next) => {
     });
 
     res.json({ spaces });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/spaces — Create a new space (admin only)
+ */
+router.post('/', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const {
+      name,
+      slug,
+      description,
+      icon,
+      color,
+      requiredTier = 'free',
+      allowedRoles = ['producer', 'client', 'admin'],
+      visibility = 'public',
+      sortOrder,
+    } = req.body;
+
+    if (!name || !slug) {
+      return res.status(400).json({ error: 'name and slug are required' });
+    }
+
+    // Validate slug format
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      return res.status(400).json({ error: 'slug must contain only lowercase letters, numbers, and hyphens' });
+    }
+
+    // Check slug uniqueness
+    const existing = await query('SELECT id FROM spaces WHERE slug = $1', [slug]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'A space with this slug already exists' });
+    }
+
+    const validTiers = ['free', 'pro', 'vip'];
+    const validRoles = ['producer', 'client', 'admin'];
+    const validVisibility = ['public', 'private', 'secret'];
+
+    if (!validTiers.includes(requiredTier)) {
+      return res.status(400).json({ error: 'Invalid requiredTier' });
+    }
+    if (!Array.isArray(allowedRoles) || allowedRoles.some(r => !validRoles.includes(r))) {
+      return res.status(400).json({ error: 'Invalid allowedRoles' });
+    }
+    if (!validVisibility.includes(visibility)) {
+      return res.status(400).json({ error: 'Invalid visibility' });
+    }
+
+    // Determine sort order (append to end by default)
+    let order = sortOrder;
+    if (order == null) {
+      const maxResult = await query('SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_order FROM spaces');
+      order = maxResult.rows[0].next_order;
+    }
+
+    const result = await query(
+      `INSERT INTO spaces
+         (name, slug, description, icon, color, required_tier, allowed_roles, visibility, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)
+       RETURNING id, slug, name, description, icon, color, visibility,
+                 required_tier, allowed_roles, post_count, member_count`,
+      [
+        name,
+        slug,
+        description || null,
+        icon || null,
+        color || '#4840B0',
+        requiredTier,
+        allowedRoles,
+        visibility,
+        order,
+      ]
+    );
+
+    res.status(201).json({ space: result.rows[0] });
   } catch (err) {
     next(err);
   }

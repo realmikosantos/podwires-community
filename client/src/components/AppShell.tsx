@@ -59,6 +59,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen]       = useState(false);
   const [notifCount, setNotifCount]       = useState(0);
   const [userMenuOpen, setUserMenuOpen]   = useState(false);
+  const [spaceModalOpen, setSpaceModal]   = useState(false);
 
   useEffect(() => { loadUser(); }, [loadUser]);
 
@@ -316,6 +317,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ))}
                   </div>
                 )}
+
+                {/* Admin — Create Space */}
+                {user.role === 'admin' && (
+                  <div className="px-3 mb-3">
+                    <div className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider px-3 mb-1">
+                      Admin
+                    </div>
+                    <button
+                      onClick={() => setSpaceModal(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-ink-400 hover:bg-ink-700 hover:text-white transition-colors"
+                    >
+                      <PlusIcon className="w-4 h-4 shrink-0" />
+                      Create Space
+                    </button>
+                  </div>
+                )}
               </>
             )}
 
@@ -471,6 +488,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
 
       </div>
+
+      {/* ── Create Space Modal (admin only) ───────────────────────── */}
+      {spaceModalOpen && (
+        <CreateSpaceModal
+          onClose={() => setSpaceModal(false)}
+          onCreated={(space) => {
+            setSpaces(prev => [...prev, { ...space, hasAccess: true, isLocked: false }]);
+            setSpaceModal(false);
+          }}
+        />
+      )}
+
     </div>
   );
 }
@@ -489,7 +518,266 @@ function TierBadge({ tier }: { tier: string }) {
   );
 }
 
+// ─── Create Space Modal ───────────────────────────────────────────────────────
+function CreateSpaceModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (space: any) => void;
+}) {
+  const [form, setForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    color: '#4840B0',
+    requiredTier: 'free',
+    allowedRoles: ['producer', 'client', 'admin'],
+    visibility: 'public',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  function autoSlug(name: string) {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  }
+
+  function setField(key: string, value: string) {
+    setForm(f => {
+      const next: any = { ...f, [key]: value };
+      if (key === 'name') next.slug = autoSlug(value);
+      return next;
+    });
+  }
+
+  function toggleRole(role: string) {
+    setForm(f => ({
+      ...f,
+      allowedRoles: f.allowedRoles.includes(role)
+        ? f.allowedRoles.filter(r => r !== role)
+        : [...f.allowedRoles, role],
+    }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!form.name.trim() || !form.slug.trim()) {
+      setError('Name and slug are required.');
+      return;
+    }
+    if (form.allowedRoles.length === 0) {
+      setError('Select at least one allowed role.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { space } = await api.createSpace(form);
+      onCreated(space);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create space');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const TIER_OPTIONS   = ['free', 'pro', 'vip'];
+  const ROLE_OPTIONS   = ['producer', 'client', 'admin'];
+  const VIS_OPTIONS    = ['public', 'private', 'secret'];
+  const COLOR_PRESETS  = ['#4840B0', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2', '#db2777'];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
+        <div className="w-full max-w-md bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl pointer-events-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-ink-700">
+            <h2 className="text-base font-semibold text-white">Create Space</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md text-ink-400 hover:text-white hover:bg-ink-700 transition-colors">
+              <CloseIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            {/* Name */}
+            <div>
+              <label className="text-xs font-medium text-ink-300 block mb-1">Space Name *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => setField('name', e.target.value)}
+                placeholder="e.g. Producer Lounge"
+                className="w-full bg-ink-700 border border-ink-600 rounded-lg px-3 py-2 text-sm text-white placeholder-ink-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                required
+              />
+            </div>
+
+            {/* Slug */}
+            <div>
+              <label className="text-xs font-medium text-ink-300 block mb-1">URL Slug *</label>
+              <div className="flex items-center bg-ink-700 border border-ink-600 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-brand-500">
+                <span className="px-3 py-2 text-xs text-ink-500 border-r border-ink-600 shrink-0">/spaces/</span>
+                <input
+                  type="text"
+                  value={form.slug}
+                  onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                  placeholder="producer-lounge"
+                  className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder-ink-500 focus:outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-xs font-medium text-ink-300 block mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={e => setField('description', e.target.value)}
+                placeholder="What is this space for?"
+                rows={2}
+                className="w-full bg-ink-700 border border-ink-600 rounded-lg px-3 py-2 text-sm text-white placeholder-ink-500 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
+              />
+            </div>
+
+            {/* Color */}
+            <div>
+              <label className="text-xs font-medium text-ink-300 block mb-2">Colour</label>
+              <div className="flex items-center gap-2">
+                {COLOR_PRESETS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, color: c }))}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                      form.color === c ? 'border-white scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={form.color}
+                  onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
+                  className="w-6 h-6 rounded-full cursor-pointer border-0 bg-transparent"
+                  title="Custom colour"
+                />
+              </div>
+            </div>
+
+            {/* Row: required tier + visibility */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-ink-300 block mb-1">Required Tier</label>
+                <select
+                  value={form.requiredTier}
+                  onChange={e => setField('requiredTier', e.target.value)}
+                  className="w-full bg-ink-700 border border-ink-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  {TIER_OPTIONS.map(t => (
+                    <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-300 block mb-1">Visibility</label>
+                <select
+                  value={form.visibility}
+                  onChange={e => setField('visibility', e.target.value)}
+                  className="w-full bg-ink-700 border border-ink-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  {VIS_OPTIONS.map(v => (
+                    <option key={v} value={v} className="capitalize">{v.charAt(0).toUpperCase() + v.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Allowed roles */}
+            <div>
+              <label className="text-xs font-medium text-ink-300 block mb-2">Allowed Roles</label>
+              <div className="flex gap-2">
+                {ROLE_OPTIONS.map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => toggleRole(role)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+                      form.allowedRoles.includes(role)
+                        ? 'bg-brand-600/30 border-brand-500 text-brand-300'
+                        : 'bg-ink-700 border-ink-600 text-ink-400 hover:border-ink-500'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            {/* Preview */}
+            <div className="flex items-center gap-2 p-3 bg-ink-700/50 rounded-lg border border-ink-600">
+              <span
+                className="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                style={{ backgroundColor: form.color }}
+              >
+                {form.name[0] || '?'}
+              </span>
+              <span className="text-sm text-ink-300 truncate">{form.name || 'Space name'}</span>
+              <span className="ml-auto text-[10px] text-ink-500 capitalize">{form.requiredTier}</span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2 rounded-lg border border-ink-600 text-sm text-ink-300 hover:text-white hover:bg-ink-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !form.name.trim()}
+                className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-500 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Creating…' : 'Create Space'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Inline SVG icons ─────────────────────────────────────────────────────────
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" x2="12" y1="5" y2="19" />
+      <line x1="5" x2="19" y1="12" y2="12" />
+    </svg>
+  );
+}
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" x2="6" y1="6" y2="18" />
+      <line x1="6" x2="18" y1="6" y2="18" />
+    </svg>
+  );
+}
 function MicIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

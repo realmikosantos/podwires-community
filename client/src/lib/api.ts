@@ -116,6 +116,21 @@ class ApiClient {
     return this.request<any>(`/api/spaces/${slug}/join`, { method: 'POST' });
   }
 
+  createSpace(data: {
+    name: string;
+    slug: string;
+    description?: string;
+    color?: string;
+    requiredTier?: string;
+    allowedRoles?: string[];
+    visibility?: string;
+  }) {
+    return this.request<any>('/api/spaces', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Posts
   createPost(data: { spaceId: string; title?: string; body: string; postType?: string }) {
     return this.request<any>('/api/posts', {
