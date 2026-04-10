@@ -1,0 +1,34 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+
+# Env files — never commit secrets
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# PM2
+.pm2/
+
+# Uploads
+uploads/
+tmp/
