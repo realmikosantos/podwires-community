@@ -110,12 +110,12 @@ const TYPE_LABELS: Record<string, string> = {
 
 // ─── RSVP button ─────────────────────────────────────────────────────────────
 function RsvpButton({ event }: { event: typeof EVENTS[0] }) {
-  const [rsvp'd, setRsvpd] = useState(false);
+  const [rsvped, setRsvped] = useState(false);
 
-  if (rsvp'd) {
+  if (rsvped) {
     return (
       <button
-        onClick={() => setRsvpd(false)}
+        onClick={() => setRsvped(false)}
         className="px-4 py-1.5 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
       >
         ✓ Going
@@ -126,7 +126,7 @@ function RsvpButton({ event }: { event: typeof EVENTS[0] }) {
   if (!event.isFree && event.price) {
     return (
       <button
-        onClick={() => setRsvpd(true)}
+        onClick={() => setRsvped(true)}
         className="px-4 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-500 transition-colors"
       >
         Buy Ticket · ${event.price}
@@ -136,7 +136,7 @@ function RsvpButton({ event }: { event: typeof EVENTS[0] }) {
 
   return (
     <button
-      onClick={() => setRsvpd(true)}
+      onClick={() => setRsvped(true)}
       className="px-4 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-500 transition-colors"
     >
       RSVP — Free
