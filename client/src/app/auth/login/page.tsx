@@ -4,6 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { Mic2, ArrowRight } from 'lucide-react';
+
+const WP_COMMUNITY_LOGIN = 'https://podwires.com/community-login';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,12 +15,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await login(email, password);
       router.push('/dashboard');
@@ -29,66 +32,110 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-ink-900 px-4">
+      <div className="w-full max-w-sm">
+
+        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-8 h-8 bg-accent-500 rounded-lg" />
-            <span className="text-xl font-display font-bold">Podwires</span>
+            <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center">
+              <Mic2 className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-display font-bold text-white">Podwires</span>
           </Link>
-          <h1 className="mt-6 text-2xl font-bold">Welcome back</h1>
-          <p className="mt-2 text-gray-600">Sign in to your community account</p>
+          <h1 className="mt-5 text-2xl font-bold text-white">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-ink-400">Sign in to your community account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
-          )}
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              placeholder="you@example.com"
-            />
+        {/* Primary SSO button */}
+        <a
+          href={WP_COMMUNITY_LOGIN}
+          className="group flex items-center justify-between w-full px-5 py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-all shadow-lg shadow-brand-900/50"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+              <Mic2 className="w-4 h-4" />
+            </div>
+            <span>Continue with Podwires</span>
           </div>
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        </a>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-              placeholder="Enter your password"
-            />
+        <p className="mt-3 text-center text-xs text-ink-500">
+          Uses your existing podwires.com account &mdash; no separate login needed.
+        </p>
+
+        {/* Toggle email/password form */}
+        {!showEmailForm ? (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setShowEmailForm(true)}
+              className="text-sm text-ink-500 hover:text-ink-300 transition-colors underline underline-offset-2"
+            >
+              Sign in with email instead
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="my-6 flex items-center gap-3">
+              <div className="flex-1 h-px bg-ink-700" />
+              <span className="text-xs text-ink-500 font-medium">or email</span>
+              <div className="flex-1 h-px bg-ink-700" />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-2.5"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 rounded-lg bg-red-900/30 border border-red-700/50 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-ink-300 mb-1.5">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-ink-800 border border-ink-600 rounded-lg text-white placeholder-ink-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-ink-300 mb-1.5">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-ink-800 border border-ink-600 rounded-lg text-white placeholder-ink-500 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </form>
+          </>
+        )}
+
+        <p className="mt-8 text-center text-sm text-ink-500">
           Don&apos;t have an account?{' '}
-          <Link href="/auth/register" className="text-brand-600 font-medium hover:underline">
-            Join the community
-          </Link>
+          <a href="https://podwires.com/register" className="text-brand-400 font-medium hover:text-brand-300 transition-colors">
+            Join Podwires free
+          </a>
         </p>
       </div>
     </div>

@@ -233,6 +233,9 @@ function base64urlDecode(str) {
 // In-memory nonce store — swap for Redis in production
 const usedNonces = new Set();
 
+// Short-lived SSO exchange codes: code → { accessToken, refreshToken }, auto-expire in 60s
+const ssoExchangeCodes = new Map();
+
 function verifyWpSsoToken(token) {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -338,26 +341,30 @@ exports.sso = async (req, res, next) => {
     const refreshToken = generateRefreshToken();
     await storeRefreshToken(user.id, refreshToken);
 
-    // Set httpOnly cookies and redirect to dashboard
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Store a short-lived exchange code (60s TTL) and redirect to frontend callback
+    const exchangeCode = crypto.randomBytes(32).toString('hex');
+    ssoExchangeCodes.set(exchangeCode, { accessToken, refreshToken });
+    setTimeout(() => ssoExchangeCodes.delete(exchangeCode), 60 * 1000);
 
-    res
-      .cookie('access_token', accessToken, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      })
-      .cookie('refresh_token', refreshToken, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      })
-      .redirect(`${clientUrl}/dashboard?sso=success`);
+    res.redirect(`${clientUrl}/auth/sso-callback?code=${exchangeCode}`);
   } catch (err) {
     next(err);
   }
+};
+
+/**
+ * GET /api/auth/sso-exchange?code=...
+ * One-time exchange: frontend hands in the code, gets back JWT pair
+ */
+exports.ssoExchange = (req, res) => {
+  const code = req.query.code;
+  if (!code || !ssoExchangeCodes.has(code)) {
+    return res.status(400).json({ error: 'Invalid or expired exchange code' });
+  }
+
+  const tokens = ssoExchangeCodes.get(code);
+  ssoExchangeCodes.delete(code); // one-time use
+  res.json(tokens);
 };
 
 /**

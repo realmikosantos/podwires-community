@@ -43,6 +43,9 @@ router.post('/logout', authController.logout);
 // WordPress SSO endpoint
 router.get('/sso', authController.sso);
 
+// One-time token exchange after SSO redirect
+router.get('/sso-exchange', authController.ssoExchange);
+
 router.get('/me', authenticate, authController.getMe);
 
 module.exports = router;
