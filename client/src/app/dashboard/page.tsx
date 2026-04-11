@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 import AppShell from '@/components/AppShell';
@@ -244,6 +246,53 @@ function RightPanel({ spaces }: { spaces: Space[] }) {
   );
 }
 
+// ─── Welcome modal (for users who skipped profile setup) ─────────────────────
+function WelcomeModal({ name, onDismiss }: { name: string; onDismiss: () => void }) {
+  const router = useRouter();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* Colourful top banner */}
+        <div className="bg-gradient-to-r from-brand-600 to-accent-600 h-24 relative">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-5xl">🎙️</span>
+          </div>
+          <button
+            onClick={onDismiss}
+            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        <div className="p-6 text-center">
+          <h2 className="text-xl font-bold text-gray-900 leading-snug">
+            Welcome to Podwires Community,<br />
+            <span className="text-brand-600">{name}!</span>
+          </h2>
+          <p className="mt-2.5 text-sm text-gray-500 leading-relaxed">
+            Before you get started, don&apos;t forget to complete your profile so the community can get to know you.
+          </p>
+
+          <button
+            onClick={() => { onDismiss(); router.push('/auth/profile-setup'); }}
+            className="mt-5 w-full py-3 rounded-full bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-colors text-sm"
+          >
+            Complete your profile
+          </button>
+          <button
+            onClick={onDismiss}
+            className="mt-2.5 w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main dashboard page ──────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -251,6 +300,20 @@ export default function DashboardPage() {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [tab, setTab]       = useState<'all' | 'following' | 'popular'>('all');
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Show welcome modal for users who skipped profile setup
+  useEffect(() => {
+    if (!user) return;
+    if (user.profileSetupCompleted) return;
+    const dismissed = localStorage.getItem('welcome_modal_dismissed');
+    if (!dismissed) setShowWelcome(true);
+  }, [user]);
+
+  const dismissWelcome = () => {
+    localStorage.setItem('welcome_modal_dismissed', '1');
+    setShowWelcome(false);
+  };
 
   useEffect(() => {
     api.getSpaces().then(d => setSpaces(d.spaces)).catch(() => {});
@@ -287,6 +350,11 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
+      {/* Welcome modal for profile-incomplete users */}
+      {showWelcome && user && (
+        <WelcomeModal name={user.displayName} onDismiss={dismissWelcome} />
+      )}
+
       <div className="flex min-h-full">
         {/* Feed column */}
         <div className="flex-1 min-w-0">

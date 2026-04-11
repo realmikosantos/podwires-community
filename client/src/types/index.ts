@@ -12,6 +12,7 @@ export interface User {
   avatarUrl?: string;
   subscriptionTier: SubscriptionTier;
   emailVerified: boolean;
+  profileSetupCompleted: boolean;
   createdAt: string;
 }
 
