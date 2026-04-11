@@ -54,10 +54,22 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const { id } = req.params;
 
     const postResult = await query(
-      `SELECT p.*, u.display_name AS author_name, u.avatar_url AS author_avatar
-       FROM posts p JOIN users u ON u.id = p.author_id
+      `SELECT p.*,
+              u.display_name  AS author_name,
+              u.avatar_url    AS author_avatar,
+              u.role          AS author_role,
+              s.name          AS space_name,
+              s.slug          AS space_slug,
+              s.color         AS space_color,
+              EXISTS(
+                SELECT 1 FROM post_likes pl
+                WHERE pl.user_id = $2 AND pl.post_id = p.id
+              ) AS liked_by_me
+       FROM posts p
+       JOIN users  u ON u.id = p.author_id
+       JOIN spaces s ON s.id = p.space_id
        WHERE p.id = $1`,
-      [id]
+      [id, req.user.id]
     );
 
     if (postResult.rows.length === 0) {
@@ -65,10 +77,15 @@ router.get('/:id', authenticate, async (req, res, next) => {
     }
 
     const commentsResult = await query(
-      `SELECT c.*, u.display_name AS author_name, u.avatar_url AS author_avatar
-       FROM comments c JOIN users u ON u.id = c.author_id
+      `SELECT c.*,
+              u.display_name AS author_name,
+              u.avatar_url   AS author_avatar,
+              u.role         AS author_role
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
        WHERE c.post_id = $1
-       ORDER BY c.created_at ASC`,
+       ORDER BY c.created_at ASC
+       LIMIT 50`,
       [id]
     );
 

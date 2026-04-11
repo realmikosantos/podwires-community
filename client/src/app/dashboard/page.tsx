@@ -172,9 +172,13 @@ function PostCard({
             </div>
           </div>
 
-          {/* Title */}
+          {/* Title — links to post detail */}
           {post.title && (
-            <h3 className="font-bold text-gray-900 mt-2 text-base leading-snug">{post.title}</h3>
+            <Link href={`/posts/${post.id}`}>
+              <h3 className="font-bold text-gray-900 mt-2 text-base leading-snug hover:text-brand-600 transition-colors cursor-pointer">
+                {post.title}
+              </h3>
+            </Link>
           )}
 
           {/* Body */}
@@ -204,10 +208,13 @@ function PostCard({
               <span>{likes > 0 ? likes : 'Like'}</span>
             </button>
 
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">
+            <Link
+              href={`/posts/${post.id}#comments`}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+            >
               <MessageSquare className="w-4 h-4" />
               <span>{post.commentCount > 0 ? `${post.commentCount} Comment${post.commentCount !== 1 ? 's' : ''}` : 'Comment'}</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

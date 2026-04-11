@@ -374,7 +374,7 @@ exports.getMe = async (req, res, next) => {
   try {
     const result = await query(
       `SELECT id, email, role, display_name, avatar_url, subscription_tier,
-              email_verified, created_at
+              email_verified, profile_setup_completed, created_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -392,8 +392,165 @@ exports.getMe = async (req, res, next) => {
       avatarUrl: user.avatar_url,
       subscriptionTier: user.subscription_tier,
       emailVerified: user.email_verified,
+      profileSetupCompleted: user.profile_setup_completed,
       createdAt: user.created_at,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const { sendVerificationEmail } = require('../config/email');
+
+/**
+ * POST /api/auth/send-verification
+ * Generates + emails a 6-digit code (rate: 1 per minute enforced in route)
+ */
+exports.sendVerification = async (req, res, next) => {
+  try {
+    const user = req.user; // authenticated
+
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    // Generate 6-digit code
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+    await query(
+      'UPDATE users SET email_verification_code_hash = $1, email_verification_expires_at = $2 WHERE id = $3',
+      [codeHash, expiresAt, user.id]
+    );
+
+    await sendVerificationEmail(user.email, user.display_name, code);
+
+    res.json({ message: 'Verification code sent' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/auth/verify-email
+ * Body: { code: "123456" }
+ */
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user.id;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code required' });
+    }
+
+    const result = await query(
+      'SELECT email_verification_code_hash, email_verification_expires_at, email_verified FROM users WHERE id = $1',
+      [userId]
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    if (!user.email_verification_code_hash || !user.email_verification_expires_at) {
+      return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
+    }
+
+    if (new Date(user.email_verification_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+    }
+
+    const submittedHash = crypto.createHash('sha256').update(code.trim()).digest('hex');
+    if (submittedHash !== user.email_verification_code_hash) {
+      return res.status(400).json({ error: 'Invalid verification code.' });
+    }
+
+    // Mark verified, clear code
+    await query(
+      `UPDATE users SET
+         email_verified = TRUE,
+         email_verified_at = NOW(),
+         email_verification_code_hash = NULL,
+         email_verification_expires_at = NULL
+       WHERE id = $1`,
+      [userId]
+    );
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/auth/profile-setup
+ * Saves initial profile data; marks profile_setup_completed = true
+ */
+exports.profileSetup = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const {
+      displayName,
+      timezone,
+      headline,
+      bio,
+      location,
+      websiteUrl,
+      twitterUrl,
+      facebookUrl,
+      instagramUrl,
+      linkedinUrl,
+      youtubeUrl,
+      podcastUrl,
+      preventMessaging = false,
+      showInDirectory = true,
+    } = req.body;
+
+    // Update users table
+    const updates = [];
+    const vals = [];
+    let idx = 1;
+
+    if (displayName) { updates.push(`display_name = $${idx++}`); vals.push(displayName); }
+    updates.push(`profile_setup_completed = TRUE`);
+
+    if (updates.length > 0) {
+      vals.push(userId);
+      await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
+    }
+
+    // Update role-specific profile
+    const profileUpdates = {};
+    if (headline)     profileUpdates.headline = headline;
+    if (bio)          profileUpdates.bio = bio;
+    if (location)     profileUpdates.location = location;
+    if (timezone)     profileUpdates.timezone = timezone;
+    if (websiteUrl)   profileUpdates.website_url = websiteUrl;
+    if (linkedinUrl)  profileUpdates.linkedin_url = linkedinUrl;
+    if (twitterUrl)   profileUpdates.twitter_handle = twitterUrl;
+    if (facebookUrl)  profileUpdates.facebook_url = facebookUrl;
+    if (instagramUrl) profileUpdates.instagram_url = instagramUrl;
+    if (youtubeUrl)   profileUpdates.youtube_url = youtubeUrl;
+    if (podcastUrl)   profileUpdates.podcast_url = podcastUrl;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const table = userRole === 'producer' ? 'producer_profiles' : 'client_profiles';
+      const setClauses = Object.keys(profileUpdates).map((k, i) => `${k} = $${i + 2}`).join(', ');
+      const profileVals = [userId, ...Object.values(profileUpdates)];
+      await query(`UPDATE ${table} SET ${setClauses} WHERE user_id = $1`, profileVals);
+    }
+
+    res.json({ message: 'Profile saved', profileSetupCompleted: true });
   } catch (err) {
     next(err);
   }

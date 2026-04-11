@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const { authenticate } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const authController = require('../controllers/authController');
+const { sendVerification, verifyEmail, profileSetup } = authController;
 
 const router = Router();
 
@@ -47,5 +48,9 @@ router.get('/sso', authController.sso);
 router.get('/sso-exchange', authController.ssoExchange);
 
 router.get('/me', authenticate, authController.getMe);
+
+router.post('/send-verification', authenticate, sendVerification);
+router.post('/verify-email', authenticate, verifyEmail);
+router.post('/profile-setup', authenticate, profileSetup);
 
 module.exports = router;

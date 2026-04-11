@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Search, Bell, Bookmark, Menu, X, ChevronDown,
+  Search, Bell, Bookmark, Menu, X, ChevronDown, ChevronRight,
   LogOut, Settings, User, Plus, Lock,
   Home, Calendar, Users, Briefcase, Radio, BarChart2,
-  Mic2,
+  Mic2, MessageCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
@@ -104,12 +104,62 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const lockedSpaces = spaces.filter(s => s.isLocked);
   const isOnFeed = activeNav.href === '/dashboard' || pathname.startsWith('/spaces');
 
+  /* ── Collapsible group helper ── */
+  function SidebarGroup({
+    label, defaultOpen = true, children,
+  }: { label: string; defaultOpen?: boolean; children: React.ReactNode }) {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+      <div className="px-3 mt-3 mb-1">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center gap-1 px-3 py-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
+        >
+          {open
+            ? <ChevronDown className="w-3 h-3 shrink-0" />
+            : <ChevronRight className="w-3 h-3 shrink-0" />
+          }
+          {label}
+        </button>
+        {open && <div className="mt-0.5 space-y-0.5">{children}</div>}
+      </div>
+    );
+  }
+
+  function SidebarLink({
+    href, label, dot, dotColor, count, icon: Icon,
+  }: {
+    href: string; label: string;
+    dot?: boolean; dotColor?: string; count?: number;
+    icon?: React.ComponentType<{ className?: string }>;
+  }) {
+    const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+    return (
+      <Link
+        href={href}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+          active ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        }`}
+      >
+        {dot && <SpaceDot color={dotColor} active={active} />}
+        {Icon && <Icon className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
+        <span className="truncate flex-1">{label}</span>
+        {count !== undefined && count > 0 && (
+          <span className="text-[10px] text-gray-400 font-medium shrink-0">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
   /* ── Sidebar contents ── */
   const SidebarContents = () => (
     <div className="flex-1 overflow-y-auto py-2 scrollbar-hide">
 
-      {/* Feed link */}
-      <div className="px-3 mb-1">
+      {/* Feed */}
+      <div className="px-3 mb-0.5">
         <Link
           href="/dashboard"
           onClick={() => setMobileOpen(false)}
@@ -124,121 +174,63 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
       </div>
 
-      {/* Deal Room */}
-      <div className="px-3 mb-1">
-        <Link
-          href="/deal-room"
-          onClick={() => setMobileOpen(false)}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            pathname.startsWith('/deal-room')
-              ? 'bg-gray-100 text-gray-900'
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-          }`}
-        >
-          <Briefcase className="w-4 h-4 shrink-0" />
-          Deal Room
-        </Link>
-      </div>
+      {/* Member Center */}
+      <SidebarGroup label="Member Center">
+        <SidebarLink href="/spaces/open-community" label="Announcements" dot dotColor="#22c55e" />
+        <SidebarLink href="/spaces/open-community" label="Getting Started" dot dotColor="#22c55e" />
+      </SidebarGroup>
 
-      {/* Member Center group */}
-      <div className="px-3 mt-4 mb-2">
-        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3">
-          Member Center
-        </span>
-        <div className="mt-1 space-y-0.5">
-          {[
-            { label: 'Announcements', href: '/spaces/open-community' },
-            { label: 'Getting Started', href: '/spaces/open-community' },
-          ].map(item => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  active ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <SpaceDot color="#22c55e" active={active} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Spaces group — dynamic from API */}
+      {/* Conversations — dynamic spaces from API */}
       {openSpaces.length > 0 && (
-        <div className="px-3 mt-4 mb-2">
-          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3">
-            Spaces
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {openSpaces.map(space => {
-              const active = pathname === `/spaces/${space.slug}`;
-              return (
-                <Link
-                  key={space.id}
-                  href={`/spaces/${space.slug}`}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    active ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <SpaceDot color={space.color} active={active} />
-                  <span className="truncate flex-1">{space.name}</span>
-                  {space.postCount > 0 && (
-                    <span className="text-[10px] text-gray-400 font-medium shrink-0">
-                      {space.postCount > 99 ? '99+' : space.postCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        <SidebarGroup label="Spaces">
+          {openSpaces.map(space => (
+            <SidebarLink
+              key={space.id}
+              href={`/spaces/${space.slug}`}
+              label={space.name}
+              dot
+              dotColor={space.color}
+              count={space.postCount}
+            />
+          ))}
+        </SidebarGroup>
       )}
 
-      {/* Locked spaces */}
+      {/* Deal Room */}
+      <SidebarGroup label="Messaging" defaultOpen={false}>
+        <SidebarLink href="/deal-room" label="Deal Room" icon={Briefcase} />
+      </SidebarGroup>
+
+      {/* Locked */}
       {lockedSpaces.length > 0 && (
-        <div className="px-3 mt-4 mb-2">
-          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3">
-            Upgrade to Unlock
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {lockedSpaces.map(space => (
-              <Link
-                key={space.id}
-                href="/settings"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-50 transition-colors"
-              >
-                <Lock className="w-3 h-3 shrink-0 text-gray-300" />
-                <span className="truncate flex-1">{space.name}</span>
-                <span className="text-[10px] text-gray-400 capitalize shrink-0">{space.requiredTier}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <SidebarGroup label="Upgrade to Unlock" defaultOpen={false}>
+          {lockedSpaces.map(space => (
+            <Link
+              key={space.id}
+              href="/settings"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-50 transition-colors"
+            >
+              <Lock className="w-3 h-3 shrink-0 text-gray-300" />
+              <span className="truncate flex-1">{space.name}</span>
+              <span className="text-[10px] text-gray-400 capitalize">{space.requiredTier}</span>
+            </Link>
+          ))}
+        </SidebarGroup>
       )}
 
-      {/* Admin — Create Space */}
+      {/* Admin */}
       {user.role === 'admin' && (
-        <div className="px-3 mt-4 mb-2">
-          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3">
-            Admin
-          </span>
-          <div className="mt-1">
-            <button
-              onClick={() => { setSpaceModal(true); setMobileOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5 shrink-0" />
-              Create Space
-            </button>
-          </div>
-        </div>
+        <SidebarGroup label="Admin">
+          <button
+            onClick={() => { setSpaceModal(true); setMobileOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            Create Space
+          </button>
+          <SidebarLink href="/crm" label="CRM / Members" icon={BarChart2} />
+        </SidebarGroup>
       )}
     </div>
   );
@@ -296,6 +288,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </button>
+
+          <Link href="/deal-room" className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" aria-label="Direct messages">
+            <MessageCircle style={{ width: 18, height: 18 }} />
+          </Link>
 
           <button className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" aria-label="Bookmarks">
             <Bookmark className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
