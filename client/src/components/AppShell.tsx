@@ -98,11 +98,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const allNav = user.role === 'admin' ? [...NAV_ITEMS, ...ADMIN_NAV] : NAV_ITEMS;
-  const activeNav = allNav.find(n => n.matches(pathname)) ?? NAV_ITEMS[0];
 
-  const openSpaces  = spaces.filter(s => !s.isLocked);
-  const lockedSpaces = spaces.filter(s => s.isLocked);
-  const isOnFeed = activeNav.href === '/dashboard' || pathname.startsWith('/spaces');
+  // Group spaces by group_name, maintaining canonical order
+  const GROUP_ORDER = ['Get Started', 'Get Clients', 'Get Better', 'Stay Active'];
+  const GROUP_DEFAULT_OPEN: Record<string, boolean> = {
+    'Get Started': true,
+    'Get Clients': true,
+    'Get Better': false,
+    'Stay Active': false,
+  };
+  const groupedSpaces = GROUP_ORDER
+    .map(group => ({
+      group,
+      items: spaces.filter((s: any) => s.group_name === group),
+      defaultOpen: GROUP_DEFAULT_OPEN[group] ?? false,
+    }))
+    .filter(g => g.items.length > 0);
+  const ungroupedSpaces = spaces.filter((s: any) => !s.group_name);
 
   /* ── Collapsible group helper ── */
   function SidebarGroup({
@@ -174,50 +186,68 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
       </div>
 
-      {/* Member Center */}
-      <SidebarGroup label="Member Center">
-        <SidebarLink href="/spaces/open-community" label="Announcements" dot dotColor="#22c55e" />
-        <SidebarLink href="/spaces/open-community" label="Getting Started" dot dotColor="#22c55e" />
-      </SidebarGroup>
+      {/* Spaces grouped by category */}
+      {groupedSpaces.map(({ group, items, defaultOpen }) => (
+        <SidebarGroup key={group} label={group} defaultOpen={defaultOpen}>
+          {items.map((space: any) =>
+            space.isLocked ? (
+              <Link
+                key={space.id}
+                href="/settings"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                <SpaceDot color={space.color} />
+                <span className="truncate flex-1">{space.name}</span>
+                <Lock className="w-3 h-3 shrink-0 text-gray-300" />
+              </Link>
+            ) : (
+              <SidebarLink
+                key={space.id}
+                href={`/spaces/${space.slug}`}
+                label={space.name}
+                dot
+                dotColor={space.color}
+                count={space.post_count}
+              />
+            )
+          )}
+        </SidebarGroup>
+      ))}
 
-      {/* Conversations — dynamic spaces from API */}
-      {openSpaces.length > 0 && (
+      {/* Ungrouped spaces (fallback for manually created spaces without a group) */}
+      {ungroupedSpaces.length > 0 && (
         <SidebarGroup label="Spaces">
-          {openSpaces.map(space => (
-            <SidebarLink
-              key={space.id}
-              href={`/spaces/${space.slug}`}
-              label={space.name}
-              dot
-              dotColor={space.color}
-              count={space.postCount}
-            />
-          ))}
+          {ungroupedSpaces.map((space: any) =>
+            space.isLocked ? (
+              <Link
+                key={space.id}
+                href="/settings"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                <SpaceDot color={space.color} />
+                <span className="truncate flex-1">{space.name}</span>
+                <Lock className="w-3 h-3 shrink-0 text-gray-300" />
+              </Link>
+            ) : (
+              <SidebarLink
+                key={space.id}
+                href={`/spaces/${space.slug}`}
+                label={space.name}
+                dot
+                dotColor={space.color}
+                count={space.post_count}
+              />
+            )
+          )}
         </SidebarGroup>
       )}
 
-      {/* Deal Room */}
+      {/* Messaging */}
       <SidebarGroup label="Messaging" defaultOpen={false}>
         <SidebarLink href="/deal-room" label="Deal Room" icon={Briefcase} />
       </SidebarGroup>
-
-      {/* Locked */}
-      {lockedSpaces.length > 0 && (
-        <SidebarGroup label="Upgrade to Unlock" defaultOpen={false}>
-          {lockedSpaces.map(space => (
-            <Link
-              key={space.id}
-              href="/settings"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-50 transition-colors"
-            >
-              <Lock className="w-3 h-3 shrink-0 text-gray-300" />
-              <span className="truncate flex-1">{space.name}</span>
-              <span className="text-[10px] text-gray-400 capitalize">{space.requiredTier}</span>
-            </Link>
-          ))}
-        </SidebarGroup>
-      )}
 
       {/* Admin */}
       {user.role === 'admin' && (
@@ -436,10 +466,11 @@ function CreateSpaceModal({
     name: '',
     slug: '',
     description: '',
-    color: '#4840B0',
+    color: '#1e3a8a',
     requiredTier: 'free',
     allowedRoles: ['producer', 'client', 'admin'],
     visibility: 'public',
+    groupName: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -472,7 +503,7 @@ function CreateSpaceModal({
     if (form.allowedRoles.length === 0) { setError('Select at least one allowed role.'); return; }
     setSaving(true);
     try {
-      const { space } = await api.createSpace(form);
+      const { space } = await api.createSpace({ ...form, groupName: form.groupName || undefined });
       onCreated(space);
     } catch (err: any) {
       setError(err.message || 'Failed to create space');
@@ -537,6 +568,21 @@ function CreateSpaceModal({
                 rows={2}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none"
               />
+            </div>
+
+            {/* Group */}
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Sidebar Group</label>
+              <select
+                value={form.groupName}
+                onChange={e => setForm(f => ({ ...f, groupName: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+              >
+                <option value="">None (ungrouped)</option>
+                {['Get Started', 'Get Clients', 'Get Better', 'Stay Active'].map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
             </div>
 
             {/* Color */}

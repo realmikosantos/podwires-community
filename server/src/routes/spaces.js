@@ -19,7 +19,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
 
     const result = await query(
       `SELECT id, slug, name, description, icon, color, visibility,
-              required_tier, allowed_roles, post_count, member_count
+              required_tier, allowed_roles, post_count, member_count, group_name
        FROM spaces
        WHERE is_active = TRUE
        ORDER BY sort_order ASC`
@@ -60,6 +60,7 @@ router.post('/', authenticate, requireRole('admin'), async (req, res, next) => {
       allowedRoles = ['producer', 'client', 'admin'],
       visibility = 'public',
       sortOrder,
+      groupName,
     } = req.body;
 
     if (!name || !slug) {
@@ -100,20 +101,21 @@ router.post('/', authenticate, requireRole('admin'), async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO spaces
-         (name, slug, description, icon, color, required_tier, allowed_roles, visibility, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)
+         (name, slug, description, icon, color, required_tier, allowed_roles, visibility, sort_order, group_name, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
        RETURNING id, slug, name, description, icon, color, visibility,
-                 required_tier, allowed_roles, post_count, member_count`,
+                 required_tier, allowed_roles, post_count, member_count, group_name`,
       [
         name,
         slug,
         description || null,
         icon || null,
-        color || '#4840B0',
+        color || '#1e3a8a',
         requiredTier,
         allowedRoles,
         visibility,
         order,
+        groupName || null,
       ]
     );
 
@@ -183,7 +185,7 @@ router.get('/:slug', authenticate, async (req, res, next) => {
 router.patch('/:slug', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
     const { slug } = req.params;
-    const { name, description, color } = req.body;
+    const { name, description, color, groupName } = req.body;
 
     const existing = await query('SELECT id FROM spaces WHERE slug = $1 AND is_active = TRUE', [slug]);
     if (existing.rows.length === 0) return res.status(404).json({ error: 'Space not found' });
@@ -194,6 +196,7 @@ router.patch('/:slug', authenticate, requireRole('admin'), async (req, res, next
     if (name !== undefined)        { updates.push(`name = $${idx++}`);        vals.push(name); }
     if (description !== undefined) { updates.push(`description = $${idx++}`); vals.push(description); }
     if (color !== undefined)       { updates.push(`color = $${idx++}`);       vals.push(color); }
+    if (groupName !== undefined)   { updates.push(`group_name = $${idx++}`);  vals.push(groupName); }
 
     if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' });
 
@@ -201,7 +204,7 @@ router.patch('/:slug', authenticate, requireRole('admin'), async (req, res, next
     const result = await query(
       `UPDATE spaces SET ${updates.join(', ')}, updated_at = NOW()
        WHERE slug = $${idx} RETURNING id, slug, name, description, color, visibility,
-             required_tier, allowed_roles, post_count, member_count`,
+             required_tier, allowed_roles, post_count, member_count, group_name`,
       vals
     );
 

@@ -124,6 +124,7 @@ class ApiClient {
     requiredTier?: string;
     allowedRoles?: string[];
     visibility?: string;
+    groupName?: string;
   }) {
     return this.request<any>('/api/spaces', {
       method: 'POST',
@@ -213,7 +214,7 @@ class ApiClient {
   }
 
   // Spaces admin
-  updateSpace(slug: string, data: { name?: string; description?: string; color?: string }) {
+  updateSpace(slug: string, data: { name?: string; description?: string; color?: string; groupName?: string }) {
     return this.request<any>(`/api/spaces/${slug}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

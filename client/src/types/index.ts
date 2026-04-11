@@ -46,11 +46,17 @@ export interface Space {
   color?: string;
   visibility: SpaceVisibility;
   requiredTier: SubscriptionTier;
+  // API returns snake_case from PostgreSQL
+  required_tier?: SubscriptionTier;
   allowedRoles: UserRole[];
   postCount: number;
+  post_count?: number;
   memberCount: number;
+  member_count?: number;
   hasAccess: boolean;
   isLocked: boolean;
+  groupName?: string;
+  group_name?: string;
 }
 
 export interface Post {
