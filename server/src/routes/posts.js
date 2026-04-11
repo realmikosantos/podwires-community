@@ -110,6 +110,25 @@ router.post(
 );
 
 /**
+ * PATCH /api/posts/:id/pin — Toggle pin (admin only)
+ */
+router.patch('/:id/pin', authenticate, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    const { id } = req.params;
+    const existing = await query('SELECT is_pinned FROM posts WHERE id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    const newValue = !existing.rows[0].is_pinned;
+    await query('UPDATE posts SET is_pinned = $1 WHERE id = $2', [newValue, id]);
+    res.json({ isPinned: newValue });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/posts/:id/like — Toggle like on a post
  */
 router.post('/:id/like', authenticate, async (req, res, next) => {

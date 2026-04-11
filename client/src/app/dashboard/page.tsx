@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, Heart, MessageSquare, Share2, Bookmark,
   MoreHorizontal, ChevronDown, Pencil, Check,
-  ShieldCheck, Image, Paperclip, Smile, Link2,
+  ShieldCheck, ImageIcon, Paperclip, Smile, Link2,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
@@ -53,11 +53,19 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 // ─── Post card ────────────────────────────────────────────────────────────────
-function PostCard({ post }: { post: Post & { spaceName?: string; spaceSlug?: string } }) {
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(post.likeCount);
-  const [saved, setSaved]  = useState(false);
+function PostCard({
+  post,
+  isAdmin = false,
+}: {
+  post: Post & { spaceName?: string; spaceSlug?: string };
+  isAdmin?: boolean;
+}) {
+  const [liked, setLiked]     = useState(false);
+  const [likes, setLikes]     = useState(post.likeCount);
+  const [saved, setSaved]     = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [pinned, setPinned]   = useState(post.isPinned);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function toggleLike() {
     api.likePost(post.id).catch(() => {});
@@ -65,8 +73,12 @@ function PostCard({ post }: { post: Post & { spaceName?: string; spaceSlug?: str
     setLikes(n => n + (liked ? -1 : 1));
   }
 
-  const bodyLines = post.body.split('\n').filter(Boolean);
-  const isLong = post.body.length > 280 || bodyLines.length > 4;
+  function togglePin() {
+    api.pinPost(post.id).then(r => setPinned(r.isPinned)).catch(() => {});
+    setMenuOpen(false);
+  }
+
+  const isLong = post.body.length > 280 || post.body.split('\n').filter(Boolean).length > 4;
 
   return (
     <article className="border-b border-gray-100 px-6 py-5 hover:bg-gray-50/40 transition-colors">
@@ -74,54 +86,95 @@ function PostCard({ post }: { post: Post & { spaceName?: string; spaceSlug?: str
         <Avatar name={post.authorName} src={post.authorAvatar} size={9} />
         <div className="flex-1 min-w-0">
 
-          {/* Author row */}
+          {/* Author + meta row */}
           <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-gray-900 text-sm leading-snug">
-                {post.authorName}
-              </span>
-              <RoleBadge role={post.authorRole} />
-              {post.isPinned && (
-                <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">
-                  📌 Pinned
-                </span>
-              )}
-              <span className="text-gray-400 text-xs">{timeAgo(post.createdAt)}</span>
-              {post.spaceSlug && post.spaceName && (
-                <>
-                  <span className="text-gray-300 text-xs">·</span>
-                  <Link
-                    href={`/spaces/${post.spaceSlug}`}
-                    className="text-[11px] text-brand-500 hover:underline font-medium"
-                  >
-                    {post.spaceName}
-                  </Link>
-                </>
-              )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-gray-900 text-sm">{post.authorName}</span>
+                <RoleBadge role={post.authorRole} />
+                {pinned && (
+                  <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">
+                    📌 Pinned
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-xs text-gray-400">{timeAgo(post.createdAt)}</span>
+                {post.spaceSlug && post.spaceName && (
+                  <>
+                    <span className="text-gray-300 text-[10px]">·</span>
+                    <span className="text-xs text-gray-400">Posted in</span>
+                    <Link
+                      href={`/spaces/${post.spaceSlug}`}
+                      className="text-xs text-brand-500 hover:underline font-medium"
+                    >
+                      {post.spaceName}
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Utility buttons */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-0.5 shrink-0">
               <button
                 onClick={() => setSaved(s => !s)}
-                className={`p-1.5 rounded-md transition-colors ${
-                  saved ? 'text-brand-600' : 'text-gray-300 hover:text-gray-500'
-                }`}
+                className={`p-1.5 rounded-lg transition-colors ${saved ? 'text-brand-600' : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'}`}
                 aria-label="Bookmark"
               >
-                <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-brand-600' : ''}`} />
+                <Bookmark className={`w-4 h-4 ${saved ? 'fill-brand-600' : ''}`} />
               </button>
-              <button className="p-1.5 rounded-md text-gray-300 hover:text-gray-500 transition-colors">
-                <MoreHorizontal className="w-3.5 h-3.5" />
+
+              <button className="p-1.5 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors" aria-label="Share">
+                <Share2 className="w-4 h-4" />
               </button>
+
+              {/* Three-dot menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen(m => !m)}
+                  className="p-1.5 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                      {isAdmin && (
+                        <button
+                          onClick={togglePin}
+                          className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="text-base">📌</span>
+                          {pinned ? 'Unpin post' : 'Pin post'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Share2 className="w-4 h-4 text-gray-400" />
+                        Copy link
+                      </button>
+                      <button
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <span className="text-base">🚩</span>
+                        Report
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Title */}
           {post.title && (
-            <h3 className="font-bold text-gray-900 mt-1.5 text-base leading-snug">
-              {post.title}
-            </h3>
+            <h3 className="font-bold text-gray-900 mt-2 text-base leading-snug">{post.title}</h3>
           )}
 
           {/* Body */}
@@ -139,25 +192,21 @@ function PostCard({ post }: { post: Post & { spaceName?: string; spaceSlug?: str
             )}
           </div>
 
-          {/* Actions row */}
-          <div className="flex items-center gap-5 mt-3">
+          {/* Actions */}
+          <div className="flex items-center gap-1 mt-3">
             <button
               onClick={toggleLike}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${
-                liked ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors ${
+                liked ? 'text-brand-600 bg-brand-50' : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
               <Heart className={`w-4 h-4 ${liked ? 'fill-brand-600' : ''}`} />
-              <span>{likes > 0 ? likes : ''}</span>
+              <span>{likes > 0 ? likes : 'Like'}</span>
             </button>
 
-            <button className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">
               <MessageSquare className="w-4 h-4" />
-              <span>{post.commentCount > 0 ? post.commentCount : ''}</span>
-            </button>
-
-            <button className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors ml-auto">
-              <Share2 className="w-4 h-4" />
+              <span>{post.commentCount > 0 ? `${post.commentCount} Comment${post.commentCount !== 1 ? 's' : ''}` : 'Comment'}</span>
             </button>
           </div>
         </div>
@@ -256,7 +305,7 @@ function NewPostModal({ spaces, defaultSpaceId, onClose, onPosted }: NewPostModa
 
           {/* Toolbar */}
           <div className="flex items-center gap-1">
-            {[Image, Paperclip, Smile, Link2].map((Icon, i) => (
+            {[ImageIcon, Paperclip, Smile, Link2].map((Icon, i) => (
               <button
                 key={i}
                 className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -603,7 +652,7 @@ export default function DashboardPage() {
           ) : (
             <div>
               {sortedPosts.map(post => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} isAdmin={user.role === 'admin'} />
               ))}
             </div>
           )}

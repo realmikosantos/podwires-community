@@ -208,6 +208,10 @@ class ApiClient {
     return this.request<any>(`/api/posts/${postId}/like`, { method: 'POST' });
   }
 
+  pinPost(postId: string) {
+    return this.request<any>(`/api/posts/${postId}/pin`, { method: 'PATCH' });
+  }
+
   // Jobs
   getJobs(page = 1, search?: string) {
     const params = new URLSearchParams({ page: String(page) });
@@ -246,6 +250,40 @@ class ApiClient {
 
   markAllNotificationsRead() {
     return this.request<any>('/api/notifications/read-all', { method: 'PATCH' });
+  }
+
+  // Email verification + onboarding
+  sendVerification() {
+    return this.request<any>('/api/auth/send-verification', { method: 'POST' });
+  }
+
+  verifyEmail(code: string) {
+    return this.request<any>('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  profileSetup(data: {
+    displayName?: string;
+    timezone?: string;
+    headline?: string;
+    bio?: string;
+    location?: string;
+    websiteUrl?: string;
+    twitterUrl?: string;
+    facebookUrl?: string;
+    instagramUrl?: string;
+    linkedinUrl?: string;
+    youtubeUrl?: string;
+    podcastUrl?: string;
+    preventMessaging?: boolean;
+    showInDirectory?: boolean;
+  }) {
+    return this.request<any>('/api/auth/profile-setup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 
