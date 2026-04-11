@@ -1,278 +1,240 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Calendar, Clock, ExternalLink, Play, RefreshCw, Mic2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { api } from '@/lib/api';
 
-// ─── Sample event data (production: fetch from API) ───────────────────────────
-const EVENTS = [
-  {
-    id: '1',
-    title: 'Podcast Growth Masterclass',
-    description: 'Join us for an in-depth session on growing your podcast audience through strategic partnerships and content marketing.',
-    host: 'Marcus Webb',
-    hostRole: 'producer',
-    date: '2026-04-18',
-    time: '3:00 PM EST',
-    duration: '90 min',
-    type: 'webinar',
-    rsvpCount: 48,
-    maxCapacity: 100,
-    isFree: true,
-    tags: ['growth', 'marketing', 'strategy'],
-    coverColor: '#4840B0',
-  },
-  {
-    id: '2',
-    title: 'Brand–Podcast Pitch Workshop',
-    description: 'Learn how to craft compelling pitches to brands and secure sponsorships for your podcast.',
-    host: 'Sarah Kim',
-    hostRole: 'client',
-    date: '2026-04-24',
-    time: '2:00 PM EST',
-    duration: '60 min',
-    type: 'workshop',
-    rsvpCount: 22,
-    maxCapacity: 40,
-    isFree: false,
-    price: 29,
-    tags: ['sponsorship', 'pitching', 'brands'],
-    coverColor: '#7c3aed',
-  },
-  {
-    id: '3',
-    title: 'Community AMA — Production Rates 2026',
-    description: 'Open ask-me-anything session covering current market rates, negotiation tips, and contract best practices.',
-    host: 'Podwires Team',
-    hostRole: 'admin',
-    date: '2026-05-02',
-    time: '1:00 PM EST',
-    duration: '45 min',
-    type: 'ama',
-    rsvpCount: 91,
-    maxCapacity: 200,
-    isFree: true,
-    tags: ['rates', 'negotiation', 'community'],
-    coverColor: '#059669',
-  },
-  {
-    id: '4',
-    title: 'Weekly Community Meetup',
-    description: 'Our recurring weekly meetup — share wins, ask questions, and connect with the community.',
-    host: 'Community Team',
-    hostRole: 'admin',
-    date: '2026-04-15',
-    time: '5:00 PM EST',
-    duration: '30 min',
-    type: 'meetup',
-    rsvpCount: 15,
-    maxCapacity: 50,
-    isFree: true,
-    tags: ['community', 'weekly'],
-    coverColor: '#d97706',
-  },
-];
-
-const PAST_EVENTS = [
-  {
-    id: 'p1',
-    title: 'Podcast Monetisation Strategies',
-    date: '2026-03-28',
-    host: 'Alex Rivera',
-    duration: '75 min',
-    recordingUrl: '#',
-    coverColor: '#4840B0',
-  },
-  {
-    id: 'p2',
-    title: 'Intro to Remote Recording',
-    date: '2026-03-14',
-    host: 'Dana Lee',
-    duration: '60 min',
-    recordingUrl: '#',
-    coverColor: '#7c3aed',
-  },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface WpEvent {
+  id: number;
+  title: string;
+  description: string;
+  date: string;
+  link: string;
+  slug: string;
+  coverImage?: string;
+  coverAlt?: string;
+  eventDate?: string;
+  eventTime?: string;
+  eventType?: string;
+  location?: string;
+  ticketUrl?: string;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatDate(iso: string): string {
+function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
   });
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  webinar: '🎓 Webinar',
-  workshop: '🛠 Workshop',
-  ama: '💬 AMA',
-  meetup: '☕ Meetup',
-};
-
-// ─── RSVP button ─────────────────────────────────────────────────────────────
-function RsvpButton({ event }: { event: typeof EVENTS[0] }) {
-  const [rsvped, setRsvped] = useState(false);
-
-  if (rsvped) {
-    return (
-      <button
-        onClick={() => setRsvped(false)}
-        className="px-4 py-1.5 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
-      >
-        ✓ Going
-      </button>
-    );
-  }
-
-  if (!event.isFree && event.price) {
-    return (
-      <button
-        onClick={() => setRsvped(true)}
-        className="px-4 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-500 transition-colors"
-      >
-        Buy Ticket · ${event.price}
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => setRsvped(true)}
-      className="px-4 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-500 transition-colors"
-    >
-      RSVP — Free
-    </button>
-  );
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ─── Event card ───────────────────────────────────────────────────────────────
-function EventCard({ event }: { event: typeof EVENTS[0] }) {
-  const pct = Math.round((event.rsvpCount / event.maxCapacity) * 100);
-  const isAlmostFull = pct >= 80;
+function getEventColor(id: number) {
+  const colors = ['#1e3a8a', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2'];
+  return colors[id % colors.length];
+}
 
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').trim();
+}
+
+// ─── Skeleton card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow bg-white">
-      {/* Color header */}
-      <div className="h-2" style={{ backgroundColor: event.coverColor }} />
-
-      <div className="p-5">
-        {/* Meta */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-medium text-gray-500">{TYPE_LABELS[event.type] ?? event.type}</span>
-          {!event.isFree && (
-            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
-              Paid · ${event.price}
-            </span>
-          )}
-          {event.isFree && (
-            <span className="text-xs font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">
-              Free
-            </span>
-          )}
-        </div>
-
-        {/* Title */}
-        <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1">{event.title}</h3>
-        <p className="text-sm text-gray-500 line-clamp-2">{event.description}</p>
-
-        {/* Date / time */}
-        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <CalendarIcon className="w-3.5 h-3.5" />
-            {formatDate(event.date)}
-          </span>
-          <span className="flex items-center gap-1">
-            <ClockIcon className="w-3.5 h-3.5" />
-            {event.time} · {event.duration}
-          </span>
-        </div>
-
-        {/* Host */}
-        <div className="flex items-center gap-2 mt-3">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-            style={{ backgroundColor: event.coverColor }}
-          >
-            {event.host[0]}
-          </div>
-          <span className="text-xs text-gray-600">Hosted by <strong>{event.host}</strong></span>
-        </div>
-
-        {/* RSVP bar + button */}
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1">
-              <span>{event.rsvpCount} going</span>
-              {isAlmostFull && (
-                <span className="text-amber-600 font-medium">Almost full!</span>
-              )}
-            </div>
-            <div className="h-1.5 rounded-full bg-gray-100">
-              <div
-                className="h-1.5 rounded-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: event.coverColor }}
-              />
-            </div>
-          </div>
-          <RsvpButton event={event} />
-        </div>
-
-        {/* Tags */}
-        {event.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {event.tags.map(t => (
-              <span key={t} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                #{t}
-              </span>
-            ))}
-          </div>
-        )}
+    <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white animate-pulse">
+      <div className="h-40 bg-gray-100" />
+      <div className="p-5 space-y-3">
+        <div className="h-4 bg-gray-100 rounded w-1/3" />
+        <div className="h-5 bg-gray-100 rounded w-3/4" />
+        <div className="h-4 bg-gray-100 rounded w-full" />
+        <div className="h-4 bg-gray-100 rounded w-2/3" />
+        <div className="h-9 bg-gray-100 rounded-full mt-4" />
       </div>
     </div>
   );
 }
 
-// ─── Past recording card ──────────────────────────────────────────────────────
-function RecordingCard({ event }: { event: typeof PAST_EVENTS[0] }) {
+// ─── Event card ────────────────────────────────────────────────────────────────
+function EventCard({ event }: { event: WpEvent }) {
+  const color = getEventColor(event.id);
+  const displayDate = event.eventDate || event.date;
+  const cleanDesc = stripHtml(event.description).slice(0, 200);
+
   return (
-    <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
-      <div
-        className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: event.coverColor + '20' }}
-      >
-        <PlayIcon className="w-5 h-5" style={{ color: event.coverColor }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 text-sm truncate">{event.title}</div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          {formatDate(event.date)} · {event.duration} · {event.host}
+    <div className="border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all bg-white group">
+      {/* Cover image or gradient */}
+      <div className="relative h-44 overflow-hidden">
+        {event.coverImage ? (
+          <img
+            src={event.coverImage}
+            alt={event.coverAlt || event.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${color}dd, ${color}88)` }}
+          >
+            <Mic2 className="w-10 h-10 text-white/60" />
+          </div>
+        )}
+        {/* Date badge */}
+        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-800 shadow-sm">
+          <div className="text-center leading-tight">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500">
+              {new Date(displayDate).toLocaleDateString('en-US', { month: 'short' })}
+            </div>
+            <div className="text-lg font-black text-gray-900 leading-none">
+              {new Date(displayDate).getDate()}
+            </div>
+          </div>
         </div>
+        {/* Type badge */}
+        {event.eventType && event.eventType !== 'event' && (
+          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-gray-700">
+            {event.eventType}
+          </div>
+        )}
       </div>
+
+      <div className="p-5">
+        {/* Title */}
+        <h3
+          className="font-bold text-gray-900 text-base leading-snug mb-2 line-clamp-2"
+          dangerouslySetInnerHTML={{ __html: event.title }}
+        />
+
+        {/* Description */}
+        {cleanDesc && (
+          <p className="text-sm text-gray-500 line-clamp-2 mb-3">{cleanDesc}</p>
+        )}
+
+        {/* Meta */}
+        <div className="flex flex-col gap-1 mb-4">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            {formatDate(displayDate)}
+          </div>
+          {event.eventTime && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              {event.eventTime}
+            </div>
+          )}
+          {event.location && (
+            <div className="text-xs text-gray-500 truncate">📍 {event.location}</div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <a
+          href={event.ticketUrl || event.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors"
+        >
+          View Event
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ─── Past / recording card ─────────────────────────────────────────────────────
+function PastCard({ event }: { event: WpEvent }) {
+  const color = getEventColor(event.id);
+  return (
+    <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors group">
+      {/* Thumb */}
+      <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0">
+        {event.coverImage ? (
+          <img src={event.coverImage} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ backgroundColor: color + '20' }}
+          >
+            <Play className="w-5 h-5" style={{ color }} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <h4
+          className="font-semibold text-gray-900 text-sm line-clamp-1"
+          dangerouslySetInnerHTML={{ __html: event.title }}
+        />
+        <div className="text-xs text-gray-400 mt-0.5">{formatShortDate(event.date)}</div>
+      </div>
+
       <a
-        href={event.recordingUrl}
-        className="shrink-0 text-sm font-medium text-brand-600 hover:text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity"
+        href={event.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="shrink-0 flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        Watch →
+        View <ExternalLink className="w-3.5 h-3.5" />
       </a>
     </div>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main page ─────────────────────────────────────────────────────────────────
 export default function EventsPage() {
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [tab, setTab]         = useState<'upcoming' | 'past'>('upcoming');
+  const [events, setEvents]   = useState<WpEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await api.getEvents();
+      setEvents(data.events ?? []);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // Split events: future = upcoming, past = older than now
+  const now = Date.now();
+  const upcoming = events.filter(e => new Date(e.eventDate || e.date).getTime() >= now - 86400000 * 1);
+  const past     = events.filter(e => new Date(e.eventDate || e.date).getTime() <  now - 86400000 * 1);
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto px-6 py-6">
+      <div className="max-w-5xl mx-auto px-6 py-6">
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Events</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Webinars, workshops, and community meetups</p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Webinars, workshops, and community meetups from{' '}
+              <a href="https://podwires.com/events/" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline font-medium">
+                podwires.com/events
+              </a>
+            </p>
           </div>
-          <button className="px-4 py-2 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-500 transition-colors flex items-center gap-2">
-            <PlusIcon className="w-4 h-4" /> Create Event
-          </button>
+          <a
+            href="https://podwires.com/events/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-brand-600 border border-brand-200 rounded-full hover:bg-brand-50 transition-colors"
+          >
+            All events <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
 
         {/* Tab bar */}
@@ -281,68 +243,79 @@ export default function EventsPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 tab === t
                   ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t === 'upcoming' ? 'Upcoming' : 'Recordings'}
+              {t === 'upcoming' ? `Upcoming${!loading && upcoming.length ? ` (${upcoming.length})` : ''}` : 'Past'}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        {tab === 'upcoming' ? (
-          <div className="grid sm:grid-cols-2 gap-4">
-            {EVENTS.map(e => <EventCard key={e.id} event={e} />)}
+        {/* Error */}
+        {error && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-gray-500 text-sm mb-3">Could not load events from podwires.com</p>
+            <button
+              onClick={load}
+              className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Try again
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {PAST_EVENTS.map(e => <RecordingCard key={e.id} event={e} />)}
-            {PAST_EVENTS.length === 0 && (
-              <div className="text-center py-12 text-gray-400">
-                <p className="text-sm">No recordings yet.</p>
+        )}
+
+        {/* Loading skeletons */}
+        {!error && loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}
+          </div>
+        )}
+
+        {/* Upcoming */}
+        {!error && !loading && tab === 'upcoming' && (
+          <>
+            {upcoming.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                  <Calendar className="w-6 h-6 text-gray-400" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">No upcoming events</h3>
+                <p className="text-sm text-gray-400 mb-4">Check back soon or browse past events</p>
+                <a
+                  href="https://podwires.com/events/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-brand-600 hover:underline font-medium"
+                >
+                  View all events on podwires.com →
+                </a>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {upcoming.map(e => <EventCard key={e.id} event={e} />)}
               </div>
             )}
-          </div>
+          </>
+        )}
+
+        {/* Past */}
+        {!error && !loading && tab === 'past' && (
+          <>
+            {past.length === 0 ? (
+              <div className="text-center py-20 text-gray-400">
+                <p className="text-sm">No past events yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-w-2xl">
+                {past.map(e => <PastCard key={e.id} event={e} />)}
+              </div>
+            )}
+          </>
         )}
       </div>
     </AppShell>
-  );
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-      <line x1="16" x2="16" y1="2" y2="6" />
-      <line x1="8" x2="8" y1="2" y2="6" />
-      <line x1="3" x2="21" y1="10" y2="10" />
-    </svg>
-  );
-}
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-function PlayIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
-  );
-}
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" x2="12" y1="5" y2="19" />
-      <line x1="5" x2="19" y1="12" y2="12" />
-    </svg>
   );
 }

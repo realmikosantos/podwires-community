@@ -14,6 +14,8 @@ const jobRoutes = require('./routes/jobs');
 const subscriptionRoutes = require('./routes/subscriptions');
 const webhookRoutes = require('./routes/webhooks');
 const notificationRoutes = require('./routes/notifications');
+const eventsRoutes = require('./routes/events');
+const blogRoutes = require('./routes/blog');
 
 const app = express();
 
@@ -69,6 +71,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/blog', blogRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

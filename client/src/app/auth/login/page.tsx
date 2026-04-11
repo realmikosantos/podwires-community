@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { Mic2, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 const WP_COMMUNITY_LOGIN = 'https://podwires.com/community-login';
 
@@ -37,11 +37,9 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center">
-              <Mic2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-display font-bold text-white">Podwires</span>
+          <Link href="https://podwires.com" className="inline-flex items-center gap-2 justify-center">
+            <img src="/podwires-logo.png" alt="Podwires" className="h-10 w-auto" />
+            <span className="text-lg font-display font-bold text-white">Community</span>
           </Link>
           <h1 className="mt-5 text-2xl font-bold text-white">Welcome back</h1>
           <p className="mt-1.5 text-sm text-ink-400">Sign in to your community account</p>
@@ -53,8 +51,8 @@ export default function LoginPage() {
           className="group flex items-center justify-between w-full px-5 py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-all shadow-lg shadow-brand-900/50"
         >
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
-              <Mic2 className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center overflow-hidden">
+              <img src="/podwires-logo.png" alt="" className="w-5 h-5 object-contain" />
             </div>
             <span>Continue with Podwires</span>
           </div>

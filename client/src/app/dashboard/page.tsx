@@ -356,15 +356,24 @@ function NewPostModal({ spaces, defaultSpaceId, onClose, onPosted }: NewPostModa
 
 // ─── Right panel ──────────────────────────────────────────────────────────────
 function RightPanel({ spaces }: { spaces: Space[] }) {
-  const UPCOMING = [
-    { title: 'Podcast Growth Masterclass', date: 'Thu, Apr 18 · 3:00 PM EST', href: '/events' },
-    { title: 'Deal Room Office Hours',     date: 'Fri, Apr 19 · 1:00 PM EST', href: '/events' },
-  ];
-  const TRENDING = [
-    { title: 'How I landed my first brand sponsorship in 60 days', author: 'Alex Rivera', likes: 42 },
-    { title: 'Best mics under $200 — producer roundup 2025',       author: 'Sarah Kim',   likes: 38 },
-    { title: 'Client onboarding checklist for podcast producers',   author: 'Marcus W.',   likes: 31 },
-  ];
+  const [events, setEvents]   = useState<any[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Upcoming events from WP
+    api.getEvents().then(d => {
+      const now = Date.now();
+      const upcoming = (d.events ?? [])
+        .filter((e: any) => new Date(e.eventDate || e.date).getTime() >= now - 86400000)
+        .slice(0, 3);
+      setEvents(upcoming);
+    }).catch(() => {});
+
+    // Trending = latest WP blog posts
+    api.getBlogPosts().then(d => {
+      setTrending((d.posts ?? []).slice(0, 4));
+    }).catch(() => {});
+  }, []);
 
   return (
     <aside className="w-64 shrink-0 border-l border-gray-100 py-5 px-4 space-y-7 hidden xl:block">
@@ -372,51 +381,75 @@ function RightPanel({ spaces }: { spaces: Space[] }) {
       <div>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Upcoming Events</h3>
         <div className="space-y-3">
-          {UPCOMING.map(ev => (
-            <Link key={ev.title} href={ev.href} className="block group">
-              <div className="text-sm font-medium text-gray-800 group-hover:text-brand-600 leading-snug">{ev.title}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{ev.date}</div>
-            </Link>
-          ))}
-          <Link href="/events" className="text-xs text-brand-500 hover:underline font-medium">
+          {events.length === 0 ? (
+            <a href="https://podwires.com/events/" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-brand-600">
+              Browse events on podwires.com →
+            </a>
+          ) : events.map((ev: any) => {
+            const d = new Date(ev.eventDate || ev.date);
+            const month = d.toLocaleDateString('en-US', { month: 'short' });
+            const day   = d.getDate();
+            return (
+              <a key={ev.id} href={ev.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 group">
+                <div className="w-9 h-9 rounded-lg bg-brand-50 flex flex-col items-center justify-center shrink-0">
+                  <span className="text-[9px] font-semibold text-brand-600 uppercase leading-none">{month}</span>
+                  <span className="text-sm font-black text-brand-700 leading-none">{day}</span>
+                </div>
+                <div>
+                  <div
+                    className="text-sm font-medium text-gray-800 group-hover:text-brand-600 leading-snug line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: ev.title }}
+                  />
+                  {ev.eventTime && <div className="text-xs text-gray-400 mt-0.5">{ev.eventTime}</div>}
+                </div>
+              </a>
+            );
+          })}
+          <Link href="/events" className="text-xs text-brand-600 hover:underline font-medium">
             View all events →
           </Link>
         </div>
       </div>
 
-      {/* Trending */}
+      {/* Trending — from WP blog */}
       <div>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Trending Posts</h3>
         <div className="space-y-3">
-          {TRENDING.map(t => (
-            <div key={t.title} className="group cursor-pointer">
-              <div className="text-sm text-gray-800 group-hover:text-brand-600 leading-snug font-medium line-clamp-2">{t.title}</div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-xs text-gray-400">{t.author}</span>
-                <span className="text-gray-200">·</span>
-                <span className="flex items-center gap-0.5 text-xs text-gray-400">
-                  <Heart className="w-3 h-3" /> {t.likes}
-                </span>
+          {trending.length === 0 ? (
+            <p className="text-xs text-gray-400">Loading…</p>
+          ) : trending.map((t: any) => (
+            <a key={t.id} href={t.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 group">
+              {t.coverImage && (
+                <img src={t.coverImage} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+              )}
+              {!t.coverImage && t.authorAvatar && (
+                <img src={t.authorAvatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5" />
+              )}
+              <div className="min-w-0">
+                <div
+                  className="text-sm text-gray-800 group-hover:text-brand-600 leading-snug font-medium line-clamp-2"
+                  dangerouslySetInnerHTML={{ __html: t.title }}
+                />
+                <div className="text-xs text-gray-400 mt-0.5">{t.authorName}</div>
               </div>
-            </div>
+            </a>
           ))}
+          <a href="https://podwires.com/blog/" target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600 hover:underline font-medium">
+            More from the blog →
+          </a>
         </div>
       </div>
 
-      {/* Active spaces */}
+      {/* Spaces */}
       {spaces.length > 0 && (
         <div>
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Spaces</h3>
           <div className="space-y-1">
             {spaces.slice(0, 5).map(s => (
-              <Link
-                key={s.id}
-                href={`/spaces/${s.slug}`}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 group"
-              >
+              <Link key={s.id} href={`/spaces/${s.slug}`} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
                 <span
                   className="w-5 h-5 rounded flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                  style={{ backgroundColor: s.color || '#4840B0' }}
+                  style={{ backgroundColor: s.color || '#1e3a8a' }}
                 >
                   {s.name[0]}
                 </span>

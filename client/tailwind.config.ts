@@ -7,18 +7,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Podwires brand — indigo/purple family (#4840B0 primary)
+        // Podwires brand — navy blue
         brand: {
-          50:  '#f0effd',
-          100: '#dddcfa',
-          200: '#bcb9f5',
-          300: '#9b96ef',
-          400: '#7a73e8',
-          500: '#5a50e0',
-          600: '#4840B0',  // Podwires primary accent
-          700: '#3D3A80',  // Podwires accent-alt
-          800: '#2d2a60',
-          900: '#1D1C2E',  // Podwires text dark
+          50:  '#eff4ff',
+          100: '#dce8ff',
+          200: '#b9d0ff',
+          300: '#85aeff',
+          400: '#5080fa',
+          500: '#2a5cf0',
+          600: '#1e3a8a',  // Podwires primary navy blue
+          700: '#1a3070',
+          800: '#152554',
+          900: '#0f1a3a',
         },
         // Dark backgrounds (#0f0e2a theme-color from podwires.com)
         ink: {

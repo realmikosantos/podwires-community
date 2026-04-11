@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mic2, ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 
@@ -290,11 +290,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="https://podwires.com" className="inline-flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center">
-              <Mic2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-display font-bold text-brand-600">podwires</span>
+          <Link href="https://podwires.com" className="inline-flex items-center gap-2 justify-center">
+            <img src="/podwires-logo.png" alt="Podwires" className="h-10 w-auto" />
+            <span className="text-lg font-display font-bold text-brand-600">Community</span>
           </Link>
         </div>
 

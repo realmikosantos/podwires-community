@@ -212,6 +212,27 @@ class ApiClient {
     return this.request<any>(`/api/posts/${postId}/pin`, { method: 'PATCH' });
   }
 
+  // Spaces admin
+  updateSpace(slug: string, data: { name?: string; description?: string; color?: string }) {
+    return this.request<any>(`/api/spaces/${slug}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteSpace(slug: string) {
+    return this.request<any>(`/api/spaces/${slug}`, { method: 'DELETE' });
+  }
+
+  // WordPress proxy
+  getEvents(page = 1) {
+    return this.request<any>(`/api/events?page=${page}&per_page=20`);
+  }
+
+  getBlogPosts() {
+    return this.request<any>('/api/blog?per_page=5');
+  }
+
   // Jobs
   getJobs(page = 1, search?: string) {
     const params = new URLSearchParams({ page: String(page) });

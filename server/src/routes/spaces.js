@@ -178,6 +178,57 @@ router.get('/:slug', authenticate, async (req, res, next) => {
 });
 
 /**
+ * PATCH /api/spaces/:slug — Edit space name/description/color (admin only)
+ */
+router.patch('/:slug', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const { name, description, color } = req.body;
+
+    const existing = await query('SELECT id FROM spaces WHERE slug = $1 AND is_active = TRUE', [slug]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Space not found' });
+
+    const updates = [];
+    const vals = [];
+    let idx = 1;
+    if (name !== undefined)        { updates.push(`name = $${idx++}`);        vals.push(name); }
+    if (description !== undefined) { updates.push(`description = $${idx++}`); vals.push(description); }
+    if (color !== undefined)       { updates.push(`color = $${idx++}`);       vals.push(color); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+
+    vals.push(slug);
+    const result = await query(
+      `UPDATE spaces SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE slug = $${idx} RETURNING id, slug, name, description, color, visibility,
+             required_tier, allowed_roles, post_count, member_count`,
+      vals
+    );
+
+    res.json({ space: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * DELETE /api/spaces/:slug — Soft-delete a space (admin only)
+ */
+router.delete('/:slug', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const result = await query(
+      `UPDATE spaces SET is_active = FALSE WHERE slug = $1 RETURNING id`,
+      [slug]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Space not found' });
+    res.json({ message: 'Space deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/spaces/:slug/join — Join a space
  */
 router.post('/:slug/join', authenticate, async (req, res, next) => {

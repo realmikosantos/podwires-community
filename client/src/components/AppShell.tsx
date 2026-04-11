@@ -7,7 +7,7 @@ import {
   Search, Bell, Bookmark, Menu, X, ChevronDown, ChevronRight,
   LogOut, Settings, User, Plus, Lock,
   Home, Calendar, Users, Briefcase, Radio, BarChart2,
-  Mic2, MessageCircle,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
@@ -242,13 +242,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <header className="h-14 shrink-0 bg-white border-b border-gray-200 flex items-center px-4 z-30 sticky top-0">
 
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 mr-6 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
-            <Mic2 className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
-          </div>
-          <span className="font-display font-bold text-gray-900 text-sm hidden sm:block leading-none">
-            Podwires<br />
-            <span className="text-gray-400 font-normal text-[10px] tracking-wide">Community</span>
+        <Link href="/dashboard" className="flex items-center gap-2 mr-5 shrink-0">
+          <img
+            src="/podwires-logo.png"
+            alt="Podwires"
+            className="h-9 w-auto object-contain"
+          />
+          <span className="font-display font-bold text-brand-600 text-sm hidden sm:block leading-none">
+            Community
           </span>
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
         </Link>

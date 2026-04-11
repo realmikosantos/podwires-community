@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mic2, Info, Camera } from 'lucide-react';
+import { Info, Camera } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 
@@ -159,11 +159,9 @@ function ProfileSetupForm() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
-              <Mic2 className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-base font-display font-bold text-gray-900">Podwires Community</span>
+          <div className="inline-flex items-center gap-2 mb-6 justify-center">
+            <img src="/podwires-logo.png" alt="Podwires" className="h-10 w-auto" />
+            <span className="text-base font-display font-bold text-gray-900">Community</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create a profile</h1>
           <p className="mt-1.5 text-sm text-gray-500">This is how you&apos;ll appear in the community</p>
