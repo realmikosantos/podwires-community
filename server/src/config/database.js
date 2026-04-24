@@ -1,8 +1,8 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Railway provides DATABASE_URL automatically when a Postgres service is attached.
-// Fall back to individual env vars for local dev.
+// If DATABASE_URL is set (e.g. managed Postgres add-ons), use it.
+// Otherwise fall back to individual env vars (local dev + Contabo VPS prod).
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,

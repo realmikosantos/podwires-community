@@ -6,13 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
  * Proxy the WordPress SSO token to the Express backend.
  *
  * Why this route exists:
- *   community.podwires.com is the Next.js frontend service on Railway.
- *   The Express backend runs as a separate Railway service.
- *   WordPress redirects to community.podwires.com/api/auth/sso — which hits
- *   Next.js, not Express. This route bridges the gap.
+ *   community.podwires.com runs the Next.js client (port 3000) and the Express
+ *   backend (port 5000) on the same Contabo VPS behind Nginx. WordPress
+ *   redirects to community.podwires.com/api/auth/sso — which Nginx routes to
+ *   the Next.js client. This route bridges to the Express backend.
  *
- * Required env var (set in Railway frontend service):
- *   BACKEND_URL=https://your-express-service.railway.app
+ * Required env var:
+ *   BACKEND_URL=http://localhost:5000  (defaults to NEXT_PUBLIC_API_URL)
  */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token');

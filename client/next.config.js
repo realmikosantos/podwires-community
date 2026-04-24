@@ -2,8 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: require('path').join(__dirname, '../../'),
-  // Required for Railway — sets the port Next.js listens on
-  // Railway sets PORT env var automatically
   images: {
     remotePatterns: [
       {
@@ -15,17 +13,17 @@ const nextConfig = {
         hostname: '*.gravatar.com',
       },
       {
-        // Allow Railway-hosted image URLs
         protocol: 'https',
-        hostname: '*.railway.app',
+        hostname: 'community.podwires.com',
       },
     ],
   },
   async rewrites() {
     // In development, proxy all /api/ calls through Next.js to avoid CORS.
-    // In production on Railway, browser JS calls NEXT_PUBLIC_API_URL directly.
+    // In production (Contabo VPS), Nginx routes /api/* to the Express backend
+    // on port 5000, so the browser calls the same origin — no rewrite needed.
     // SSO routes are handled by Next.js API routes (src/app/api/auth/sso/route.ts)
-    // which proxy to the Express backend — no rewrite needed here.
+    // which proxy to the Express backend.
     if (process.env.NODE_ENV === 'production') return [];
     return [
       {
