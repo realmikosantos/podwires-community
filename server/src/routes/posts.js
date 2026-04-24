@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { body } = require('express-validator');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, serviceOrJwt } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { query } = require('../config/database');
 
@@ -8,10 +8,13 @@ const router = Router();
 
 /**
  * POST /api/posts — Create a post in a space
+ *
+ * Accepts either JWT auth or X-Service-Token (NewsWire Hub press-release
+ * distribute → community announcements). See serviceOrJwt middleware.
  */
 router.post(
   '/',
-  authenticate,
+  serviceOrJwt,
   [
     body('spaceId').isUUID().withMessage('Valid space ID required'),
     body('body').trim().notEmpty().withMessage('Post body required'),

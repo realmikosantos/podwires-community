@@ -47,6 +47,47 @@ const authenticate = async (req, res, next) => {
 };
 
 /**
+ * Service-or-JWT auth — accepts either:
+ *   1. X-Service-Token header matching COMMUNITY_SERVICE_TOKEN (hydrates
+ *      req.user from COMMUNITY_SERVICE_USER_ID). Used by NewsWire Hub's
+ *      press-release distribute route to push announcements server-to-server
+ *      without minting a JWT for a human user.
+ *   2. Falls through to standard JWT/cookie authenticate() otherwise.
+ *
+ * Both env vars must be set for the service path to activate. If either
+ * is missing, any X-Service-Token header is ignored and the request must
+ * present a valid JWT.
+ */
+const serviceOrJwt = async (req, res, next) => {
+  const serviceToken = req.headers['x-service-token'];
+  const expectedToken = process.env.COMMUNITY_SERVICE_TOKEN;
+  const serviceUserId = process.env.COMMUNITY_SERVICE_USER_ID;
+
+  if (serviceToken && expectedToken && serviceUserId && serviceToken === expectedToken) {
+    try {
+      const result = await query(
+        'SELECT id, email, role, display_name, avatar_url, subscription_tier, account_status FROM users WHERE id = $1',
+        [serviceUserId]
+      );
+      if (result.rows.length === 0) {
+        return res.status(500).json({ error: 'Service user not found' });
+      }
+      const user = result.rows[0];
+      if (user.account_status !== 'active') {
+        return res.status(500).json({ error: 'Service user is ' + user.account_status });
+      }
+      req.user = user;
+      req.authSource = 'service';
+      return next();
+    } catch (err) {
+      return res.status(500).json({ error: 'Service auth failed' });
+    }
+  }
+
+  return authenticate(req, res, next);
+};
+
+/**
  * Optional auth — attaches user if token present, continues either way
  */
 const optionalAuth = async (req, res, next) => {
@@ -127,4 +168,4 @@ const requireTier = (minimumTier) => {
   };
 };
 
-module.exports = { authenticate, optionalAuth, requireRole, requireTier };
+module.exports = { authenticate, serviceOrJwt, optionalAuth, requireRole, requireTier };
